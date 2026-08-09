@@ -1,7 +1,5 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtQuick 2.15
-import QtQuick.Controls 2.15
 import Omarchy 1.0
 
 Item {
@@ -11,27 +9,23 @@ Item {
 
     property bool isRunning: false
 
-    // Import du composant de service
     Omarchy.Service {
         id: vpnService
-        source: "shell/plugins/panels/openvpn/Service.qml"
+        source: "Service.qml"
     }
 
-    // État du VPN
     property alias isRunning: vpnService.isRunning
 
-    // Image de l'état
     Image {
         id: statusImage
         width: 24
         height: 24
-        source: isRunning ? "shell/plugins/panels/openvpn/vpn-up.png" : "shell/plugins/panels/openvpn/vpn-down-light.png"
+        source: isRunning ? "vpn-up.png" : "vpn-down-light.png"
         fillMode: Image.PreserveAspectFit
         anchors.left: parent.left
         anchors.leftMargin: 5
     }
 
-    // Bouton pour activer/désactiver le VPN
     Button {
         id: toggleButton
         width: 30
@@ -48,18 +42,16 @@ Item {
         }
     }
 
-    // Connexion pour mettre à jour l'état
     connections: [
         Connection {
             target: vpnService
             method: onRunningChanged
             function() {
-                statusImage.source = isRunning ? "shell/plugins/panels/openvpn/vpn-up.png" : "shell/plugins/panels/openvpn/vpn-down-light.png"
+                statusImage.source = isRunning ? "vpn-up.png" : "vpn-down-light.png"
             }
         }
     ]
 
-    // Menu contextuel pour la configuration
     Menu {
         id: configMenu
         anchors.right: toggleButton.right
@@ -69,7 +61,7 @@ Item {
         MenuItem {
             text: "Configurer VPN"
             onTriggered: {
-                Omarchy.openPanel("shell/plugins/panels/openvpn/ConfigPanel.qml")
+                Omarchy.openPanel("ConfigPanel.qml")
             }
         }
     }

@@ -6,17 +6,13 @@ TrayIcon {
     id: trayIcon
     width: 24
     height: 24
+    icon: vpnService.isRunning ? "vpn-up.png" : "vpn-down-light.png"
 
-    // Import du service VPN
     Omarchy.Service {
         id: vpnService
         source: "Service.qml"
     }
 
-    // Définir l'icône en fonction de l'état
-    icon: vpnService.isRunning ? "vpn-up.png" : "vpn-down-light.png"
-
-    // Connexion pour mettre à jour l'icône
     connections: [
         Connection {
             target: vpnService
@@ -27,13 +23,11 @@ TrayIcon {
         }
     ]
 
-    // Menu contextuel
     Menu {
         MenuItem {
             text: "Configurer VPN"
             onTriggered: Omarchy.openPanel("ConfigPanel.qml")
         }
-
         MenuItem {
             text: vpnService.isRunning ? "Déconnecter" : "Connecter"
             onTriggered: {
@@ -44,7 +38,6 @@ TrayIcon {
                 }
             }
         }
-
         MenuItem {
             text: "Quitter"
             onTriggered: Omarchy.close()
