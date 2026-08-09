@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "openvpn.client",
+  "name": "OpenVPN",
+  "version": "1.0.0",
+  "description": "OpenVPN Client Integration",
+  "kinds": ["bar-widget"],
+  "author": "OpenVPN Team",
+  "entryPoints": {
+    "barWidget": "shell/plugins/panels/openvpn/Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "OpenVPN",
+    "description": "OpenVPN client status and toggle",
+    "category": "System",
+    "allowMultiple": false
+  },
+  "license": "MIT"
+}

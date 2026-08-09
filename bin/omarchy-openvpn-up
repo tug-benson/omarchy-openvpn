@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Commande pour démarrer la connexion OpenVPN
+# Vous pouvez la remplacer par : nmcli connection up my-vpn
+pkexec systemctl start openvpn-client@client || pkexec systemctl start openvpn

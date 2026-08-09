@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Commande pour arrêter la connexion OpenVPN
+# Vous pouvez la remplacer par : nmcli connection down my-vpn
+pkexec systemctl stop openvpn-client@client || pkexec systemctl stop openvpn || pkexec killall openvpn

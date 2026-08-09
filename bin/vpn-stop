@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Arrêter le client VPN via systemctl
+sudo systemctl stop vpn-client

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Script pour appliquer les configurations DNS et domaine de recherche
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <dns_ip> <domain>"
+    exit 1
+fi
+
+DNS_IP="$1"
+DOMAIN="$2"
+
+# Appliquer la configuration DNS
+sudo resolvectl dns tun0 "$DNS_IP"
+
+# Appliquer la configuration du domaine de recherche
+sudo resolvectl domain tun0 "$DOMAIN"
+
+echo "DNS et domaine configurés avec succès pour tun0."

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Script pour démarrer le client VPN et gérer le TOTP si nécessaire
+# Utilisation: vpn-start
+
+# Vérifier si le TOTP est requis dans la configuration
+TOTP_REQUIRED=$(grep -c "auth-token" /etc/openvpn/client.conf)
+
+# Démarrer le client VPN
+sudo systemctl start vpn-client
+
+# Si TOTP est requis, afficher la fenêtre de dialogue
+if [ "$TOTP_REQUIRED" -gt 0 ]; then
+    Omarchy.runScript("vpn-show-totp-dialog")
+fi

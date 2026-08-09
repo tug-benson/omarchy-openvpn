@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Script pour importer un fichier .ovpn
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <fichier.ovpn>"
+    exit 1
+fi
+
+CONFIG_FILE="$1"
+DESTINATION="/etc/openvpn/client.conf"
+
+# Copier le fichier de configuration
+sudo cp "$CONFIG_FILE" "$DESTINATION"
+
+# Vérifier si le fichier a été copié avec succès
+if [ -f "$DESTINATION" ]; then
+    echo "Fichier .ovpn importé avec succès vers $DESTINATION"
+else
+    echo "Échec de l'importation du fichier .ovpn"
+    exit 1
+fi
