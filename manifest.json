@@ -4,8 +4,13 @@
   "name": "OpenVPN",
   "version": "1.0.0",
   "description": "OpenVPN Client Integration",
-  "kinds": ["bar-widget"],
+  "kinds": ["bar-widget", "tray-widget"],
   "author": "OpenVPN Team",
+  "entryPoints": {
+    "barWidget": "shell/plugins/panels/openvpn/Panel.qml",
+    "trayWidget": "shell/plugins/panels/openvpn/TrayPanel.qml"
+  }
+}
   "entryPoints": {
     "barWidget": "shell/plugins/panels/openvpn/Panel.qml"
   },
