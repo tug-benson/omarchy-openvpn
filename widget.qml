@@ -39,7 +39,7 @@ BarWidget {
         text: "󰴽" // L'icône Nerd Font U+F0D3D
         tooltipText: isConnected ? "OpenVPN (Connecté)" : "OpenVPN (Déconnecté)"
         // On peut changer la couleur pour indiquer l'état
-        color: isConnected ? "#a6e3a1" : root.bar ? root.bar.textColor : "#ffffff"
+        foreground: isConnected ? "#a6e3a1" : (root.bar ? root.bar.textColor : "#ffffff")
 
         onPressed: function(b) {
             root.togglePanel()
