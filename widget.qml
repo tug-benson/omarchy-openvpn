@@ -36,7 +36,7 @@ BarWidget {
         id: buttonItem
         anchors.fill: parent
         bar: root.bar
-        text: "󰴽" // L'icône Nerd Font U+F0D3D
+        text: "" // Standard padlock (U+F023) pour tester l'affichage
         tooltipText: isConnected ? "OpenVPN (Connecté)" : "OpenVPN (Déconnecté)"
         // Omarchy BarIconButton n'a pas de propriété color/foreground.
         // On utilise 'active' pour illuminer l'icône quand on est connecté
