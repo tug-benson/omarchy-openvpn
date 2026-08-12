@@ -4,35 +4,37 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
-    implicitWidth: 200
-    implicitHeight: 80
+    implicitWidth: layout.implicitWidth + 10
+    implicitHeight: 24
 
-    // Service.qml would manage the connection logic here
-    // Service { id: vpnService }
+    // Variable d'état factice pour l'instant
+    property bool isConnected: false
 
-    ColumnLayout {
+    RowLayout {
+        id: layout
         anchors.centerIn: parent
-        spacing: 10
+        spacing: 6
 
         Label {
-            text: "OpenVPN"
-            font.bold: true
-            Layout.alignment: Qt.AlignHCenter
+            // Utilisation de l'icône de Nerd Font
+            text: "\udb85\udd46" 
+            font.family: "JetBrainsMono Nerd Font Mono"
+            font.pixelSize: 16
+            color: isConnected ? "#a6e3a1" : "#f38ba8" // Vert si connecté, rouge si déconnecté (Catppuccin colors)
         }
 
-        Switch {
-            id: vpnSwitch
-            text: checked ? "Connected" : "Disconnected"
-            Layout.alignment: Qt.AlignHCenter
-            onCheckedChanged: {
-                if (checked) {
-                    console.log("Connecting to VPN...")
-                    // vpnService.connect()
-                } else {
-                    console.log("Disconnecting from VPN...")
-                    // vpnService.disconnect()
-                }
-            }
+        Label {
+            text: isConnected ? "VPN ON" : "VPN OFF"
+            font.pixelSize: 12
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: {
+            // Pour tester, on inverse simplement l'état
+            isConnected = !isConnected;
+            console.log(isConnected ? "Connecting VPN..." : "Disconnecting VPN...");
         }
     }
 }

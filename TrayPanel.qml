@@ -7,8 +7,9 @@ Item {
     implicitHeight: 24
 
     Label {
-        text: "VPN"
+        text: "\udb85\udd46" // Nerd Font icon for VPN
         anchors.centerIn: parent
-        font.pixelSize: 10
+        font.family: "JetBrainsMono Nerd Font Mono"
+        font.pixelSize: 16
     }
 }
