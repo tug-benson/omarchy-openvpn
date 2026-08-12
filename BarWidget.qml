@@ -36,7 +36,7 @@ BarWidget {
         id: buttonItem
         anchors.fill: parent
         bar: root.bar
-        text: "\udb85\udd46" // L'icône Nerd Font demandée
+        text: "󰴽" // L'icône Nerd Font U+F0D3D
         tooltipText: isConnected ? "OpenVPN (Connecté)" : "OpenVPN (Déconnecté)"
         // On peut changer la couleur pour indiquer l'état
         color: isConnected ? "#a6e3a1" : root.bar ? root.bar.textColor : "#ffffff"
