@@ -38,8 +38,9 @@ BarWidget {
         bar: root.bar
         text: "󰴽" // L'icône Nerd Font U+F0D3D
         tooltipText: isConnected ? "OpenVPN (Connecté)" : "OpenVPN (Déconnecté)"
-        // On peut changer la couleur pour indiquer l'état
-        foreground: isConnected ? "#a6e3a1" : (root.bar ? root.bar.textColor : "#ffffff")
+        // Omarchy BarIconButton n'a pas de propriété color/foreground.
+        // On utilise 'active' pour illuminer l'icône quand on est connecté
+        active: isConnected
 
         onPressed: function(b) {
             root.togglePanel()
