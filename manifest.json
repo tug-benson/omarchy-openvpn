@@ -7,7 +7,7 @@
   "kinds": ["bar-widget", "tray-widget"],
   "author": "OpenVPN Team",
   "entryPoints": {
-    "barWidget": "BarWidget.qml",
+    "barWidget": "MainBarWidget.qml",
     "trayWidget": "TrayPanel.qml"
   },
   "barWidget": {
