@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "openvpn.client",
+  "id": "openvpn",
   "name": "OpenVPN",
   "version": "1.0.0",
   "description": "OpenVPN Client Integration",
