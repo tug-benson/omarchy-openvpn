@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Script pour obtenir le temps de latence (ping) de l'interface tun0
+if [ ! -f /etc/openvpn/client.conf ]; then
+    echo "stopped"
+    exit 0
+fi
+
+# Récupérer l'hôte de ping depuis la configuration OpenVPN
+PING_HOST=$(grep -m1 "^remote" /etc/openvpn/client.conf | awk '{print $2}')
+
+if [ -z "$PING_HOST" ]; then
+    # Utiliser par défaut 1.1.1.1 si aucun hôte spécifié
+    PING_HOST="1.1.1.1"
+fi
+
+# Effectuer un ping simple et extraire la latence
+PING_OUTPUT=$(ping -q -c 1 -W 2 "$PING_HOST" 2>&1)
+
+if [ $? -eq 0 ]; then
+    # Extraire le temps de latence (dernière valeur de rtt)
+    LATENCY=$(echo "$PING_OUTPUT" | grep -oP 'time=\K[\d.]+')
+    if [ -n "$LATENCY" ]; then
+        echo "$LATENCY ms"
+    else
+        echo "--"
+    fi
+else
+    echo "--"
+fi

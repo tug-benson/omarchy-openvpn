@@ -57,10 +57,60 @@ KeyboardPanel {
         }
 
         RowLayout {
-            Label { text: "Traffic :" }
+            Label { text: "Download :" }
             Label {
-                id: trafficLabel
+                id: downloadLabel
                 text: (hostWidget && hostWidget.isConnected) ? loadTraffic() : "--"
+                color: "#82aaff"
+                font.pixelSize: 11
+            }
+        }
+
+        RowLayout {
+            Label { text: "Upload :" }
+            Label {
+                id: uploadLabel
+                text: (hostWidget && hostWidget.isConnected) ? loadTraffic() : "--"
+                color: "#82aaff"
+                font.pixelSize: 11
+            }
+        }
+
+        RowLayout {
+            Label { text: "Ping :" }
+            Label {
+                id: pingLabel
+                text: (hostWidget && hostWidget.isConnected) ? loadPing() : "--"
+                color: "#ffd700"
+                font.pixelSize: 11
+            }
+        }
+
+        RowLayout {
+            Label { text: "Packet :" }
+            Label {
+                id: packetLabel
+                text: (hostWidget && hostWidget.isConnected) ? loadPacket() : "--"
+                color: "#cddb87"
+                font.pixelSize: 11
+            }
+        }
+
+        RowLayout {
+            Label { text: "DNS :" }
+            Label {
+                id: dnsLabel
+                text: (hostWidget && hostWidget.isConnected) ? loadDNS() : "--"
+                color: "#88c0d0"
+                font.pixelSize: 11
+            }
+        }
+
+        RowLayout {
+            Label { text: "IP :" }
+            Label {
+                id: ipLabel
+                text: (hostWidget && hostWidget.isConnected) ? loadIP() : "--"
                 color: "#82aaff"
                 font.pixelSize: 11
             }
@@ -78,11 +128,11 @@ KeyboardPanel {
     }
 
     function loadTraffic() {
-        if (!hostWidget || !hostWidget.isConnected) return "--"
-        var output =Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $2, $10}'")
-        if (!output) return "--"
+        if (!hostWidget || !hostWidget.isConnected) return "-- --"
+        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $2, $10}'")
+        if (!output) return "-- --"
         var parts = output.split(" ")
-        if (parts.length < 2) return "--"
+        if (parts.length < 2) return "-- --"
         var rx = parseInt(parts[0])
         var tx = parseInt(parts[1])
         function formatBytes(b) {
@@ -91,6 +141,38 @@ KeyboardPanel {
             if (b >= 1024) return (b / 1024).toFixed(2) + " Ko"
             return b + " octets"
         }
-        return "Rx: " + formatBytes(rx) + " | Tx: " + formatBytes(tx)
+        return formatBytes(rx) + " / " + formatBytes(tx)
+    }
+
+    function loadPing() {
+        if (!hostWidget || !hostWidget.isConnected) return "--"
+        var output = Omarchy.readPipe("bash /home/bapt/Documents/omarchy-openvpn/bin/vpn-ping 2>&1")
+        if (!output) return "--"
+        return output.trim()
+    }
+
+    function loadPacket() {
+        if (!hostWidget || !hostWidget.isConnected) return "--"
+        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $3, $7}'")
+        if (!output) return "-- --"
+        var parts = output.split(" ")
+        if (parts.length < 2) return "-- --"
+        return parts[0] + " / " + parts[1]
+    }
+
+    function loadDNS() {
+        if (!hostWidget || !hostWidget.isConnected) return "--"
+        // Try to get DNS from resolvectl or /etc/resolv.conf
+        var output = Omarchy.readPipe("resolvectl status tun 2>/dev/null | grep 'DNS servers' | head -1")
+        if (!output) return "--"
+        var dnsPart = output.split(":")[1] || ""
+        return dnsPart.trim().split(" ").slice(0, 2).join(", ") || "--"
+    }
+
+    function loadIP() {
+        if (!hostWidget || !hostWidget.isConnected) return "--"
+        var output = Omarchy.readPipe("ip -4 addr show tun0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
+        if (!output) return "--"
+        return output.trim()
     }
 }
