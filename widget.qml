@@ -37,7 +37,7 @@ BarWidget {
         anchors.fill: parent
         bar: root.bar
         text: "" // Standard padlock (U+F023) pour tester l'affichage
-        tooltipText: isConnected ? "OpenVPN (Connecté)" : "OpenVPN (Déconnecté)"
+        tooltipText: isConnected ? "OpenVPN (Connecté – tun0)" : "OpenVPN (Déconnecté)"
         // Omarchy BarIconButton n'a pas de propriété color/foreground.
         // On utilise 'active' pour illuminer l'icône quand on est connecté
         active: isConnected

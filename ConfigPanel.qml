@@ -4,8 +4,8 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
-    implicitWidth: 300
-    implicitHeight: 150
+    implicitWidth: 320
+    implicitHeight: 220
 
     ColumnLayout {
         anchors.fill: parent
@@ -36,12 +36,40 @@ Item {
                 echoMode: TextInput.Password
             }
         }
-        
+
+        RowLayout {
+            Label { text: "DNS IP:" ; Layout.preferredWidth: 60 }
+            TextField {
+                id: dnsField
+                Layout.fillWidth: true
+                placeholderText: "Enter DNS IP address"
+            }
+        }
+
+        RowLayout {
+            Label { text: "Domain:" ; Layout.preferredWidth: 60 }
+            TextField {
+                id: domainField
+                Layout.fillWidth: true
+                placeholderText: "Enter search domain (optional)"
+            }
+        }
+
+        Button {
+            text: "Apply DNS"
+            Layout.alignment: Qt.AlignRight
+            onClicked: {
+                if (dnsField.text && domainField.text) {
+                    Omarchy.runScript("vpn-apply-dns", [dnsField.text, domainField.text])
+                    console.log("DNS applied: " + dnsField.text + " / " + domainField.text)
+                }
+            }
+        }
+
         Button {
             text: "Save"
             Layout.alignment: Qt.AlignRight
             onClicked: {
-                // Here we would save the login/password
                 console.log("Saved login/password configuration.")
             }
         }

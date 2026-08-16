@@ -25,8 +25,8 @@ KeyboardPanel {
         opened = false;
     }
 
-    contentWidth: Style.space(250)
-    contentHeight: Style.space(120)
+    contentWidth: Style.space(280)
+    contentHeight: Style.space(180)
 
     ColumnLayout {
         anchors.fill: parent
@@ -40,10 +40,29 @@ KeyboardPanel {
         }
 
         RowLayout {
+            Label { text: "Interface :" }
+            Label {
+                id: ifaceLabel
+                text: (hostWidget && hostWidget.isConnected) ? "tun0" : "--"
+                color: "#cddb87"
+            }
+        }
+
+        RowLayout {
             Label { text: "Statut :" }
             Label {
                 text: (hostWidget && hostWidget.isConnected) ? "Connecté" : "Déconnecté"
                 color: (hostWidget && hostWidget.isConnected) ? "#a6e3a1" : "#f38ba8"
+            }
+        }
+
+        RowLayout {
+            Label { text: "Traffic :" }
+            Label {
+                id: trafficLabel
+                text: (hostWidget && hostWidget.isConnected) ? loadTraffic() : "--"
+                color: "#82aaff"
+                font.pixelSize: 11
             }
         }
 
@@ -56,5 +75,22 @@ KeyboardPanel {
                 }
             }
         }
+    }
+
+    function loadTraffic() {
+        if (!hostWidget || !hostWidget.isConnected) return "--"
+        var output =Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $2, $10}'")
+        if (!output) return "--"
+        var parts = output.split(" ")
+        if (parts.length < 2) return "--"
+        var rx = parseInt(parts[0])
+        var tx = parseInt(parts[1])
+        function formatBytes(b) {
+            if (b >= 1073741824) return (b / 1073741824).toFixed(2) + " Go"
+            if (b >= 1048576) return (b / 1048576).toFixed(2) + " Mo"
+            if (b >= 1024) return (b / 1024).toFixed(2) + " Ko"
+            return b + " octets"
+        }
+        return "Rx: " + formatBytes(rx) + " | Tx: " + formatBytes(tx)
     }
 }
