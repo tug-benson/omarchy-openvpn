@@ -4,64 +4,77 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
-    implicitWidth: 320
-    implicitHeight: 220
+    implicitWidth: 300
+    implicitHeight: 200
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
-        spacing: 10
+        spacing: 8
 
         Label {
             text: "OpenVPN Configuration"
             font.bold: true
+            font.pixelSize: 12
             Layout.alignment: Qt.AlignHCenter
+            font.color: "#333333"
         }
 
         RowLayout {
-            Label { text: "Login:" ; Layout.preferredWidth: 60 }
+            spacing: 6
+            anchors.margins: Qt.size(0, 4)
+
+            Label { text: "Login:" ; font.pixelSize: 9 ; font.color: "#555555" }
             TextField {
                 id: loginField
                 Layout.fillWidth: true
-                placeholderText: "Enter username"
+                font.pixelSize: 9
+                placeholderText: "username"
             }
         }
 
         RowLayout {
-            Label { text: "Password:" ; Layout.preferredWidth: 60 }
+            spacing: 6
+            Label { text: "Password:" ; font.pixelSize: 9 ; font.color: "#555555" }
             TextField {
                 id: passwordField
                 Layout.fillWidth: true
-                placeholderText: "Enter password"
+                font.pixelSize: 9
                 echoMode: TextInput.Password
+                placeholderText: "password"
             }
         }
 
         RowLayout {
-            Label { text: "DNS IP:" ; Layout.preferredWidth: 60 }
+            spacing: 6
+            Label { text: "DNS IP:" ; font.pixelSize: 9 ; font.color: "#555555" }
             TextField {
                 id: dnsField
                 Layout.fillWidth: true
-                placeholderText: "Enter DNS IP address"
+                font.pixelSize: 9
+                placeholderText: "DNS server"
             }
         }
 
         RowLayout {
-            Label { text: "Domain:" ; Layout.preferredWidth: 60 }
+            spacing: 6
+            Label { text: "Domain:" ; font.pixelSize: 9 ; font.color: "#555555" }
             TextField {
                 id: domainField
                 Layout.fillWidth: true
-                placeholderText: "Enter search domain (optional)"
+                font.pixelSize: 9
+                placeholderText: "search domain (optional)"
             }
         }
 
         Button {
             text: "Apply DNS"
             Layout.alignment: Qt.AlignRight
+            font.pixelSize: 9
             onClicked: {
                 if (dnsField.text && domainField.text) {
                     Omarchy.runScript("vpn-apply-dns", [dnsField.text, domainField.text])
-                    console.log("DNS applied: " + dnsField.text + " / " + domainField.text)
+                    console.log("DNS applied")
                 }
             }
         }
@@ -69,14 +82,12 @@ Item {
         Button {
             text: "Import .ovpn"
             Layout.alignment: Qt.AlignRight
+            font.pixelSize: 9
             onClicked: {
-                var result = Omarchy.showOpenFileName("Sélectionner un fichier OpenVPN", "Fichiers OpenVPN (*.ovpn);;Tous les fichiers (*)")
+                var result = Omarchy.showOpenFileName("Select OpenVPN config", "OpenVPN files (*.ovpn);;All files (*)")
                 if (result) {
-                    var src = Omarchy.readFile(result)
-                    if (src) {
-                        Omarchy.runScript("vpn-import-ovpn", [result])
-                        console.log("Importé: " + result)
-                    }
+                    Omarchy.runScript("vpn-import-ovpn", [result])
+                    console.log("Imported: " + result)
                 }
             }
         }
@@ -84,6 +95,7 @@ Item {
         Button {
             text: "Paste from Clipboard"
             Layout.alignment: Qt.AlignRight
+            font.pixelSize: 9
             onClicked: {
                 var content = Omarchy.readPipe("wl-paste" 2>/dev/null || echo "")
                 if (content && content.includes("-----BEGIN OpenVPN")) {
@@ -91,10 +103,17 @@ Item {
                     var tmpFile = home + "/.config/openvpn/client-import.ovpn"
                     Omarchy.writeFile(tmpFile, content)
                     Omarchy.runScript("vpn-import-ovpn", [tmpFile])
-                    console.log("Collé depuis le presse-papier")
-                } else {
-                    console.log("Aucune configuration OpenVPN trouvée dans le presse-papier")
+                    console.log("Pasted from clipboard")
                 }
+            }
+        }
+
+        Button {
+            text: "Save"
+            Layout.alignment: Qt.AlignRight
+            font.pixelSize: 9
+            onClicked: {
+                console.log("Configuration saved")
             }
         }
     }

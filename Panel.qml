@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 import qs.Commons
 import qs.Ui
 
@@ -25,152 +25,162 @@ KeyboardPanel {
         opened = false;
     }
 
-    contentWidth: Style.space(280)
-    contentHeight: Style.space(180)
+    contentWidth: Style.space(260)
+    contentHeight: Style.space(140)
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Style.space(10)
-        spacing: Style.space(10)
+        anchors.margins: Style.space(8)
+        spacing: Style.space(6)
 
-        Label {
-            text: "Configuration OpenVPN"
-            font.bold: true
-            Layout.alignment: Qt.AlignHCenter
-        }
-
+        // Status row with connect button
         RowLayout {
-            Label { text: "Interface :" }
-            Label {
-                id: ifaceLabel
-                text: (hostWidget && hostWidget.isConnected) ? "tun0" : "--"
-                color: "#cddb87"
-            }
-        }
+            anchors.margins: Qt.size(0, 0)
+            spacing: Style.space(4)
 
-        RowLayout {
-            Label { text: "Statut :" }
             Label {
-                text: (hostWidget && hostWidget.isConnected) ? "Connecté" : "Déconnecté"
-                color: (hostWidget && hostWidget.isConnected) ? "#a6e3a1" : "#f38ba8"
-            }
-        }
-
-        RowLayout {
-            Label { text: "Download :" }
-            Label {
-                id: downloadLabel
-                text: (hostWidget && hostWidget.isConnected) ? loadTraffic() : "--"
-                color: "#82aaff"
+                text: "OpenVPN"
                 font.pixelSize: 11
+                font.color: "#888888"
             }
-        }
 
-        RowLayout {
-            Label { text: "Upload :" }
-            Label {
-                id: uploadLabel
-                text: (hostWidget && hostWidget.isConnected) ? loadTraffic() : "--"
-                color: "#82aaff"
-                font.pixelSize: 11
-            }
-        }
-
-        RowLayout {
-            Label { text: "Ping :" }
-            Label {
-                id: pingLabel
-                text: (hostWidget && hostWidget.isConnected) ? loadPing() : "--"
-                color: "#ffd700"
-                font.pixelSize: 11
-            }
-        }
-
-        RowLayout {
-            Label { text: "Packet :" }
-            Label {
-                id: packetLabel
-                text: (hostWidget && hostWidget.isConnected) ? loadPacket() : "--"
-                color: "#cddb87"
-                font.pixelSize: 11
-            }
-        }
-
-        RowLayout {
-            Label { text: "DNS :" }
-            Label {
-                id: dnsLabel
-                text: (hostWidget && hostWidget.isConnected) ? loadDNS() : "--"
-                color: "#88c0d0"
-                font.pixelSize: 11
-            }
-        }
-
-        RowLayout {
-            Label { text: "IP :" }
-            Label {
-                id: ipLabel
-                text: (hostWidget && hostWidget.isConnected) ? loadIP() : "--"
-                color: "#82aaff"
-                font.pixelSize: 11
-            }
-        }
-
-        Button {
-            text: (hostWidget && hostWidget.isConnected) ? "Se déconnecter" : "Se connecter"
-            Layout.fillWidth: true
-            onClicked: {
-                if (hostWidget) {
-                    hostWidget.isConnected = !hostWidget.isConnected;
+            Button {
+                id: connectBtn
+                text: root.isConnected ? "Disconnect" : "Connect"
+                implicitWidth: Style.space(60)
+                implicitHeight: Style.space(24)
+                font.pixelSize: 10
+                enabled: true
+                onClicked: {
+                    root.isConnected = !root.isConnected
                 }
             }
         }
-    }
 
-    function loadTraffic() {
-        if (!hostWidget || !hostWidget.isConnected) return "-- --"
-        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $2, $10}'")
-        if (!output) return "-- --"
-        var parts = output.split(" ")
-        if (parts.length < 2) return "-- --"
-        var rx = parseInt(parts[0])
-        var tx = parseInt(parts[1])
-        function formatBytes(b) {
-            if (b >= 1073741824) return (b / 1073741824).toFixed(2) + " Go"
-            if (b >= 1048576) return (b / 1048576).toFixed(2) + " Mo"
-            if (b >= 1024) return (b / 1024).toFixed(2) + " Ko"
-            return b + " octets"
+        // Small separator
+        Frame {
+            implicitWidth: root.contentWidth
+            implicitHeight: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            FrameStyle {}
         }
-        return formatBytes(rx) + " / " + formatBytes(tx)
+
+        // Stats row with small graphs
+        RowLayout {
+            spacing: Style.space(6)
+            anchors.margins: Qt.size(0, 4)
+
+            // Download graph
+            Item {
+                Layout.minimumWidth: Style.space(80)
+                Layout.preferredWidth: Style.space(80)
+                Layout.fillWidth: true
+
+                // Download speed label
+                Label {
+                    id: downloadLabel
+                    text: "--"
+                    font.pixelSize: 9
+                    font.color: "#88c0d0"
+                    Layout.alignment: Qt.AlignLeft
+                }
+
+                // Small download bar/graph
+                Item {
+                    implicitHeight: Style.space(20)
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    Repeater {
+                        model: 10
+                        delegate: Rectangle {
+                            implicitWidth: 3
+                            height: (downloadValue / 100) * 20
+                            color: "#88c0d0"
+                            anchors.bottom: parent.bottom
+                        }
+                    }
+                    property int downloadValue: root.loadDownload()
+                }
+            }
+
+            // Upload graph
+            Item {
+                Layout.minimumWidth: Style.space(80)
+                Layout.preferredWidth: Style.space(80)
+                Layout.fillWidth: true
+
+                // Upload speed label
+                Label {
+                    id: uploadLabel
+                    text: "--"
+                    font.pixelSize: 9
+                    font.color: "#88c0d0"
+                    Layout.alignment: Qt.AlignRight
+                }
+
+                // Small upload bar/graph
+                Item {
+                    implicitHeight: Style.space(20)
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    Repeater {
+                        model: 10
+                        delegate: Rectangle {
+                            implicitWidth: 3
+                            height: (uploadValue / 100) * 20
+                            color: "#82aaff"
+                            anchors.bottom: parent.bottom
+                        }
+                    }
+                    property int uploadValue: root.loadUpload()
+                }
+            }
+        }
+
+        // Quick info row
+        RowLayout {
+            spacing: Style.space(6)
+            anchors.margins: Qt.size(0, 4)
+
+            Label { text: "IP:" ; font.pixelSize: 8 ; font.color: "#888888" }
+            Label {
+                id: ipLabel
+                text: root.isConnected ? root.loadIP() : "--"
+                font.pixelSize: 8
+                font.color: "#ffffff"
+            }
+            Label { text:"/" ; font.pixelSize: 8 ; font.color: "#888888" }
+            Label {
+                id: ifaceLabel
+                text: root.isConnected ? "tun0" : "--"
+                font.pixelSize: 8
+                font.color: "#888888"
+            }
+        }
     }
 
-    function loadPing() {
-        if (!hostWidget || !hostWidget.isConnected) return "--"
-        var output = Omarchy.readPipe("bash /home/bapt/Documents/omarchy-openvpn/bin/vpn-ping 2>&1")
-        if (!output) return "--"
-        return output.trim()
-    }
-
-    function loadPacket() {
-        if (!hostWidget || !hostWidget.isConnected) return "--"
-        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $3, $7}'")
-        if (!output) return "-- --"
+    function loadDownload() {
+        if (!root.hostWidget || !root.hostWidget.isConnected) return 0
+        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $2}'")
+        if (!output) return 0
         var parts = output.split(" ")
-        if (parts.length < 2) return "-- --"
-        return parts[0] + " / " + parts[1]
+        if (parts.length < 1) return 0
+        return parseInt(parts[0])
     }
 
-    function loadDNS() {
-        if (!hostWidget || !hostWidget.isConnected) return "--"
-        // Try to get DNS from resolvectl or /etc/resolv.conf
-        var output = Omarchy.readPipe("resolvectl status tun 2>/dev/null | grep 'DNS servers' | head -1")
-        if (!output) return "--"
-        var dnsPart = output.split(":")[1] || ""
-        return dnsPart.trim().split(" ").slice(0, 2).join(", ") || "--"
+    function loadUpload() {
+        if (!root.hostWidget || !root.hostWidget.isConnected) return 0
+        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $10}'")
+        if (!output) return 0
+        var parts = output.split(" ")
+        if (parts.length < 1) return 0
+        return parseInt(parts[0])
     }
 
     function loadIP() {
-        if (!hostWidget || !hostWidget.isConnected) return "--"
+        if (!root.hostWidget || !root.hostWidget.isConnected) return "--"
         var output = Omarchy.readPipe("ip -4 addr show tun0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
         if (!output) return "--"
         return output.trim()

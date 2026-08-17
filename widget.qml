@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls 2.15
 import qs.Commons
 import qs.Ui
 
@@ -36,8 +36,8 @@ BarWidget {
         id: buttonItem
         anchors.fill: parent
         bar: root.bar
-        text: "" // Standard padlock (U+F023) pour tester l'affichage
-        tooltipText: isConnected ? "OpenVPN (Connecté – tun0)" : "OpenVPN (Déconnecté)"
+        text: "" // VPN icon
+        tooltipText: isConnected ? "OpenVPN Connected" : "OpenVPN Disconnected"
         // Omarchy BarIconButton n'a pas de propriété color/foreground.
         // On utilise 'active' pour illuminer l'icône quand on est connecté
         active: isConnected
