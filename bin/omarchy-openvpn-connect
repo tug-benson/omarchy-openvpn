@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# omarchy-openvpn-connect
+# Bring up a NetworkManager VPN connection with username / password / OTP.
+#   connect <conn-uuid> [port] [proto] [mssfix]
+#
+# Secrets are supplied through environment variables (never on the command
+# line, so they are not visible in `ps`) and are piped to `nmcli ... --ask` on
+# stdin as raw values (password, then the dynamic-challenge response). Nothing
+# is written to disk and nothing is persisted on the connection.
+#   OPENVPN_USER            OpenVPN username
+#   OPENVPN_PASSWORD        OpenVPN password
+#   OPENVPN_OTP             TOTP / dynamic-challenge response (optional)
+#
+# A passwd-file cannot be used here because the dynamic-challenge secret name
+# contains a colon (vpn.secrets.x-dynamic-challenge-echo:challenge-response),
+# which nmcli's passwd-file parser rejects.
+#
+# Runs as the user; PolicyKit authorizes the NetworkManager operations.
+set -uo pipefail
+
+CONN="${1:-}"
+PORT="${2:-}"
+PROTO="${3:-}"
+MSSFIX="${4:-0}"
+SPLIT="${5:-0}"
+
+USER="${OPENVPN_USER:-}"
+PASS="${OPENVPN_PASSWORD:-}"
+OTP="${OPENVPN_OTP:-}"
+
+[ -z "$CONN" ] && { echo "FAIL: no connection specified"; exit 1; }
+
+# Set the username on the connection (non-secret, persisted).
+nmcli connection modify "$CONN" vpn.user-name "$USER" 2>/dev/null
+
+# Force the remote endpoint when the user picked a specific port/proto.
+# NOTE: `nmcli connection modify <conn> vpn.data "remote=..."` REPLACES the
+# whole vpn.data dict (wiping ca/cert/challenge-response-flags). So we remove
+# only the remote key and re-add it, leaving everything else intact.
+if [ -n "$PORT" ] && [ -n "$PROTO" ]; then
+    HOST=$(nmcli -t -f vpn.data connection show "$CONN" 2>/dev/null \
+        | grep -oP 'remote = \K[^,:]+' | head -1)
+    [ -z "$HOST" ] && HOST="vpn.oscaro.com"
+    nmcli connection modify "$CONN" -vpn.data remote 2>/dev/null
+    nmcli connection modify "$CONN" +vpn.data "remote=$HOST:$PORT:$PROTO" 2>/dev/null
+fi
+
+# mssfix toggle.
+if [ "$MSSFIX" = "1" ]; then
+    nmcli connection modify "$CONN" +vpn.data "mssfix=1360" 2>/dev/null
+else
+    nmcli connection modify "$CONN" -vpn.data mssfix 2>/dev/null
+fi
+
+# Split tunnel: when enabled, the VPN must NOT become the default route. NM keeps
+# the specific routes pushed by the server but drops the 0.0.0.0/0 default route,
+# so only professional traffic goes through tun0 while personal traffic stays on
+# the physical interface (e.g. wlp6s0).
+if [ "$SPLIT" = "1" ]; then
+    nmcli connection modify "$CONN" ipv4.never-default yes ipv6.never-default yes 2>/dev/null
+else
+    nmcli connection modify "$CONN" ipv4.never-default no ipv6.never-default no 2>/dev/null
+fi
+
+# Feed secrets to nmcli --ask on stdin. nmcli prompts for each required secret
+# in order; we answer with the raw password, then the raw OTP/challenge reply.
+{
+    printf '%s\n' "$PASS"
+    [ -n "$OTP" ] && printf '%s\n' "$OTP"
+} | timeout 45 nmcli connection up "$CONN" --ask >/tmp/omarchy-openvpn-up.log 2>&1
+RC=${PIPESTATUS[1]}
+
+if [ "$RC" -eq 0 ]; then
+    echo "SUCCESS"
+else
+    LOG=$(tail -3 /tmp/omarchy-openvpn-up.log | tr '\n' ' ')
+    # The precise auth failure reason (e.g. LOCKOUT) is reported by openvpn in
+    # the system journal, not in nmcli's stdout. Prefer that when available.
+    if timeout 3 journalctl -u NetworkManager -n 60 --no-pager 2>/dev/null \
+        | grep -qi "LOCKOUT"; then
+        echo "FAIL: Account locked (too many attempts). Wait a few minutes before retrying."
+    elif echo "$LOG" | grep -qi "No valid secrets\|not given"; then
+        echo "FAIL: Missing secrets — check credentials / TOTP code."
+    elif echo "$LOG" | grep -qi "A password is required\|AUTH"; then
+        echo "FAIL: Authentication failed — invalid credentials or TOTP code."
+    else
+        echo "FAIL: $LOG"
+    fi
+fi
+exit "$RC"

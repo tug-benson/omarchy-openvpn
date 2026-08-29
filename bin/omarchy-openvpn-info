@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+# omarchy-openvpn-info
+# Network details + traffic counters for the active NetworkManager VPN.
+# Output JSON: {rx, tx, gateway, dns[], search[], routes[], latency, remote, publicIp,
+#                iface, link, dnsCurrent, dnsDomain}
+import subprocess, json, re
+
+res = subprocess.run(
+    ["nmcli", "-t", "-f", "NAME,UUID,TYPE,STATE,DEVICE", "connection", "show", "--active"],
+    capture_output=True, text=True,
+).stdout
+
+uuid = None
+for line in res.splitlines():
+    p = line.split(":")
+    if len(p) >= 5 and p[2] == "vpn" and p[3] == "activated":
+        uuid = p[1]
+        break
+
+if not uuid:
+    print(json.dumps({}))
+    raise SystemExit(0)
+
+# Resolve the VPN tunnel device. Authoritative source: the device(s) this VPN
+# connection is actually bound to. Fall back to scanning for an up tun/tap
+# interface (a second tunnel would be tun1, never the Wi‑Fi / Ethernet card).
+dev = ""
+try:
+    out = subprocess.run(["nmcli", "-t", "-f", "GENERAL.DEVICES", "connection", "show", uuid],
+                         capture_output=True, text=True).stdout
+    for l in out.splitlines():
+        if l.startswith("GENERAL.DEVICES"):
+            d = l.split(":", 1)[1].strip().split(",")[0]
+            if d.startswith(("tun", "tap")):
+                dev = d
+            break
+except Exception:
+    pass
+
+if not dev:
+    try:
+        out = subprocess.run(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status"],
+                             capture_output=True, text=True).stdout
+        for l in out.splitlines():
+            p = l.split(":")
+            if len(p) >= 3 and p[0].startswith(("tun", "tap")) and p[2] in ("connected", "activated"):
+                dev = p[0]
+                break
+    except Exception:
+        pass
+
+if not dev:
+    try:
+        out = subprocess.run(
+            ["bash", "-c", "ip -o link show up | grep -oP '^[0-9]+: \\K(tun[0-9]+)' | head -1"],
+            capture_output=True, text=True).stdout.strip()
+        dev = out
+    except Exception:
+        pass
+
+if not dev:
+    print(json.dumps({}))
+    raise SystemExit(0)
+
+# Traffic counters
+rx = tx = 0
+try:
+    with open("/proc/net/dev") as f:
+        for l in f:
+            if dev in l:
+                c = l.split()
+                rx = int(c[1]); tx = int(c[9])
+except Exception:
+    pass
+
+# Routes via this device + default route if it goes through it
+routes = []
+out = subprocess.run(["ip", "route", "show", "dev", dev], capture_output=True, text=True).stdout
+for l in out.splitlines():
+    routes.append(l.strip())
+out = subprocess.run(["ip", "route", "show", "default"], capture_output=True, text=True).stdout
+for l in out.splitlines():
+    if dev in l:
+        routes.append(l.strip())
+
+# DNS + search domains
+dns = []
+out = subprocess.run(["nmcli", "-t", "-f", "IP4.DNS,IP6.DNS", "device", "show", dev],
+                     capture_output=True, text=True).stdout
+for l in out.splitlines():
+    if ".DNS" in l:
+        dns.append(l.split(":", 1)[1].strip())
+
+search = []
+out = subprocess.run(["nmcli", "-t", "-f", "IP4.DOMAIN", "device", "show", dev],
+                     capture_output=True, text=True).stdout
+for l in out.splitlines():
+    if "DOMAIN" in l:
+        search.append(l.split(":", 1)[1].strip())
+
+# Interface name + link index + DNS details from systemd-resolved (resolvectl).
+# The VPN device may be tun0 OR tun1 (another tunnel), so we report the real name.
+iface = dev
+link = ""
+dns_current = ""
+dns_domain = ""
+dns_resolved = []
+try:
+    rc = subprocess.run(["resolvectl", "status", dev],
+                        capture_output=True, text=True).stdout
+except Exception:
+    rc = ""
+rclines = rc.splitlines()
+for i, l in enumerate(rclines):
+    s = l.strip()
+    m = re.match(r"^Link\s+(\d+)\s*\(([^)]+)\)", s)
+    if m:
+        link = m.group(1)
+        iface = m.group(2)
+        continue
+    if s.startswith("Current DNS Server:"):
+        dns_current = s.split(":", 1)[1].strip()
+        continue
+    if s.startswith("DNS Servers:"):
+        servers = [s.split(":", 1)[1].strip()]
+        for j in range(i + 1, len(rclines)):
+            nxt = rclines[j]
+            if nxt.startswith(" ") and not nxt.strip().startswith(
+                ("Current", "DNS", "Domain", "Link", "Protocol", "Scopes",
+                 "Default", "LLMNR", "mDNS", "Resolver", "Sites")
+            ):
+                servers.append(nxt.strip())
+            else:
+                break
+        dns_resolved = [x for x in servers if x]
+        continue
+    if s.startswith("DNS Domain:"):
+        domains = [s.split(":", 1)[1].strip()]
+        for j in range(i + 1, len(rclines)):
+            nxt = rclines[j]
+            if nxt.startswith(" ") and not nxt.strip().startswith(
+                ("Current", "DNS", "Domain", "Link", "Protocol", "Scopes",
+                 "Default", "LLMNR", "mDNS", "Resolver", "Sites")
+            ):
+                domains.append(nxt.strip())
+            else:
+                break
+        dns_domain = " ".join(d for d in domains if d)
+        continue
+
+# Prefer systemd-resolved DNS (matches what the resolver actually uses);
+# fall back to NM-reported DNS if resolvectl has nothing.
+if dns_resolved:
+    dns = dns_resolved
+
+# Remote endpoint (first remote in the connection)
+remote = ""
+out = subprocess.run(["nmcli", "-t", "-f", "vpn.data", "connection", "show", uuid],
+                     capture_output=True, text=True).stdout
+for l in out.splitlines():
+    if "remote =" in l:
+        remote = l.split("remote =", 1)[1].strip().split(",")[0].strip()
+
+# Tunnel IP (IPv4 preferred, then global IPv6)
+ipaddr = ""
+try:
+    out = subprocess.run(["ip", "-o", "-4", "addr", "show", "dev", dev],
+                        capture_output=True, text=True).stdout
+    for l in out.splitlines():
+        m = re.search(r"inet (\d+\.\d+\.\d+\.\d+)/\d+", l)
+        if m:
+            ipaddr = m.group(1)
+            break
+    if not ipaddr:
+        out = subprocess.run(["ip", "-o", "-6", "addr", "show", "dev", dev],
+                            capture_output=True, text=True).stdout
+        for l in out.splitlines():
+            m = re.search(r"inet6 ([0-9a-fA-F:]+)/\d+", l)
+            if m and not m.group(1).startswith("fe80"):
+                ipaddr = m.group(1)
+                break
+except Exception:
+    pass
+
+# Latency to the VPN gateway host
+latency = "--"
+if remote:
+    host = remote.split(":")[0]
+    try:
+        out = subprocess.run(["ping", "-c", "1", "-W", "2", host],
+                             capture_output=True, text=True).stdout
+        m = re.search(r"time=([0-9.]+)\s*ms", out)
+        if m:
+            latency = m.group(1) + " ms"
+    except Exception:
+        pass
+
+print(json.dumps({
+    "rx": rx,
+    "tx": tx,
+    "gateway": (routes[0] if routes else ""),
+    "dns": dns,
+    "search": search,
+    "routes": routes,
+    "latency": latency,
+    "remote": remote,
+    "ip": ipaddr,
+    "iface": iface,
+    "link": link,
+    "dnsCurrent": dns_current,
+    "dnsDomain": dns_domain,
+}))

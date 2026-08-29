@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# omarchy-openvpn-static-challenge
+# Print "1" if the NetworkManager VPN connection requires a static-challenge
+# (TOTP) response, else "0". Argument is the connection UUID (or name).
+set -uo pipefail
+CONN="${1:-}"
+[ -z "$CONN" ] && { echo "0"; exit 0; }
+nmcli -t -f vpn.data connection show "$CONN" 2>/dev/null \
+    | grep -q "challenge-response-flags" && echo "1" || echo "0"

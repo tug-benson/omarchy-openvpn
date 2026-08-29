@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# omarchy-openvpn-config
+# Reads/writes non-secret UI settings in ~/.config/openvpn/ui.json
+#   get                       -> print the json
+#   set-profile <path>        -> remember the selected profile
+#   set-totp  <0|1>           -> enable/disable TOTP (MFA) challenge
+#   set-remote <port> <proto> -> force remote port/proto (empty/empty = auto)
+#   set-mssfix <0|1>          -> enable mssfix 1360
+#   set-split <0|1>           -> enable split tunnel
+#   set-user   <user>         -> remember the OpenVPN username (non-secret)
+#
+# Concurrent writes are serialized with a lock file and written atomically
+# (temp file + rename), so a quickshell restart or rapid saves can never
+# corrupt or blank the file (which previously wiped the profile / username).
+#
+# No secrets (password / OTP) are ever written here.
+
+set -u
+
+CONF_DIR="${HOME}/.config/openvpn"
+SETTINGS="${CONF_DIR}/ui.json"
+LOCK="${CONF_DIR}/.ui.lock"
+mkdir -p "$CONF_DIR"
+chmod 700 "$CONF_DIR"
+[ -f "$SETTINGS" ] || echo '{"profile":"","user":"","totp":false,"port":"","proto":"","mssfix":false,"split":true}' > "$SETTINGS"
+
+# update_json <key> <type> <value>   (type: str | bool)
+update_json() {
+    python3 - "$SETTINGS" "$LOCK" "$1" "$2" "$3" <<'PY'
+import json, sys, os, fcntl
+p, lock, key, vtype, val = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+if vtype == "bool":
+    val = (val == "true" or val == "1")
+with open(lock, "w") as lf:
+    fcntl.flock(lf, fcntl.LOCK_EX)
+    try:
+        try:
+            data = json.load(open(p))
+        except Exception:
+            data = {}
+        data[key] = val
+        tmp = p + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        os.replace(tmp, p)
+    finally:
+        fcntl.flock(lf, fcntl.LOCK_UN)
+PY
+}
+
+case "${1:-get}" in
+    get)
+        cat "$SETTINGS"
+        ;;
+    set-profile)
+        update_json profile str "$2"
+        echo "$2"
+        ;;
+    set-user)
+        update_json user str "$2"
+        echo "$2"
+        ;;
+    set-totp)
+        update_json totp bool "$2"
+        echo "$2"
+        ;;
+    set-remote)
+        update_json port str "$2"
+        update_json proto str "$3"
+        echo "$2 $3"
+        ;;
+    set-mssfix)
+        update_json mssfix bool "$2"
+        echo "$2"
+        ;;
+    set-split)
+        update_json split bool "$2"
+        echo "$2"
+        ;;
+    *)
+        echo "Unknown command: $1" >&2
+        exit 1
+        ;;
+esac

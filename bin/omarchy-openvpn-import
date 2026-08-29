@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# omarchy-openvpn-import
+# Import an OpenVPN profile into NetworkManager (user-scoped, PolicyKit).
+#   import <file.ovpn>  -> print the connection UUID on stdout
+#
+# Idempotent: if a VPN connection with the same name already exists, it is
+# reused (its UUID stays stable) so re-importing never creates duplicates or
+# leaves stale UUIDs behind. This keeps the selection stored in ui.json valid.
+#
+# No root / sudo required: nmcli is authorized for the active user via PolicyKit.
+set -uo pipefail
+
+FILE="${1:-}"
+[ -z "$FILE" ] && { echo "FAIL: no file given"; exit 1; }
+[ -f "$FILE" ] || { echo "FAIL: file not found: $FILE"; exit 1; }
+
+OUT=$(nmcli connection import type openvpn file "$FILE" 2>&1)
+NAME=$(printf '%s' "$OUT" | sed -n "s/.*Connection '\([^']*\)'.*/\1/p")
+NEWUUID=$(printf '%s' "$OUT" | sed -n "s/.*Connection '[^']*' (\([0-9a-f-]*\)).*/\1/p")
+if [ -z "$NAME" ] || [ -z "$NEWUUID" ]; then
+    echo "FAIL: import failed: $OUT"
+    exit 1
+fi
+
+# If another VPN connection with the same name already existed, keep THAT one
+# (its UUID is stable) and discard the freshly imported duplicate.
+EXISTING=$(nmcli -t -f NAME,UUID,TYPE connection show 2>/dev/null \
+    | awk -F: -v n="$NAME" -v me="$NEWUUID" '$3=="vpn" && $1==n && $2!=me {print $2; exit}')
+if [ -n "$EXISTING" ]; then
+    nmcli connection delete "$NEWUUID" >/dev/null 2>&1
+    echo "EXISTS:$EXISTING"
+    exit 0
+fi
+
+echo "$NEWUUID"

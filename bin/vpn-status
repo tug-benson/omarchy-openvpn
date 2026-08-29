@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# Vérifier si OpenVPN est en cours d'exécution
-if pgrep -x "openvpn" > /dev/null; then
-    echo "running"
-else
-    echo "stopped"
-fi

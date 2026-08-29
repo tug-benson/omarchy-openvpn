@@ -1,20 +1,22 @@
 {
   "schemaVersion": 1,
   "id": "openvpn",
-  "name": "OpenVPN",
-  "version": "1.0.0",
-  "description": "OpenVPN Client Integration",
-  "kinds": ["bar-widget", "tray-widget"],
-  "author": "OpenVPN Team",
+  "name": "Omarchy OpenVPN Connect",
+  "version": "2.0.0",
+  "description": "OpenVPN client for Omarchy — multi-profile .ovpn import, username/password + TOTP (MFA) challenge/response auth, live tunnel traffic graph, and full network info (IP, gateway, DNS, routes, search domains).",
+  "author": "omarchy-openvpn",
+  "license": "MIT",
+  "repository": "https://github.com/tug-benson/omarchy-openvpn",
+  "kinds": ["service", "bar-widget"],
   "entryPoints": {
-    "barWidget": "widget.qml",
-    "trayWidget": "tray.qml"
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "OpenVPN",
-    "description": "OpenVPN client status and toggle",
+    "description": "OpenVPN connection status and control",
     "category": "Network",
-    "allowMultiple": false
-  },
-  "license": "MIT"
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
 }

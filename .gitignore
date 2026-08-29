@@ -1,2 +1,5 @@
-agy.md
-security-scan.md
+*.qmlc
+*.jsc
+.cache/
+__pycache__/
+*.pyc

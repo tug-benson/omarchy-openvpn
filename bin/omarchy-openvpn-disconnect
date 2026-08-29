@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# omarchy-openvpn-disconnect
+# Tear down a NetworkManager VPN connection (by UUID or name).
+# Runs as the user; PolicyKit authorizes the operation.
+set -uo pipefail
+
+CONN="${1:-}"
+[ -z "$CONN" ] && { echo "FAIL: no connection specified"; exit 1; }
+
+timeout 30 nmcli connection down "$CONN" >/dev/null 2>&1
+echo "SUCCESS"

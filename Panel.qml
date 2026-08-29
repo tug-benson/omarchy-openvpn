@@ -1,188 +1,574 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick.Controls
+import QtQuick.Controls as QQC
+import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-KeyboardPanel {
+Panel {
     id: root
+    moduleName: "OpenVPN Connect"
+    manageIpc: false
 
     property var hostWidget: null
-    anchorItem: hostWidget && hostWidget.button ? hostWidget.button : null
-    bar: hostWidget ? hostWidget.bar : null
-    property var settings: hostWidget ? hostWidget.settings : null
-    
-    owner: hostWidget || root
-    property bool opened: false
-    open: opened
+    property var anchorItem: null
+    property bool showConfig: false
+    property bool totpPrompt: false
+    property bool passPrompt: false
+    property string pendingPassword: ""
+    readonly property string icon: "󰯄"
 
-    function toggle() {
-        opened = !opened;
+    function toggleVpnFlow() {
+        if (root.isConnected) { if (root.service) root.service.vpnDisconnect(); return }
+        if (!root.service) return
+        if (!root.hasCreds) { root.showConfig = true; return }
+        root.passPrompt = true
     }
 
-    function close() {
-        opened = false;
+    // ── Theme tokens ──
+    readonly property string fontFam: Style.font.family
+    readonly property int titleSize: Style.font.title
+    readonly property int logoSize: titleSize + 7
+    readonly property int bodySize: Style.font.body
+    readonly property int captionSize: Style.font.caption
+    readonly property color fg: Color.foreground
+    readonly property color cAccent: Color.accent
+    readonly property color cDown: Color.muted
+    readonly property color cOk: Color.accent
+    readonly property color cErr: Color.urgent
+    readonly property color cWarn: Color.urgent
+    readonly property color cMuted: Color.muted
+
+    readonly property var service: hostWidget && hostWidget.service
+        ? hostWidget.service
+        : (bar && bar.shell && typeof bar.shell.serviceFor === "function"
+           ? bar.shell.serviceFor("openvpn") : null)
+
+    readonly property bool isConnected: service ? service.connected : false
+    readonly property bool isBusy: service ? service.busy : false
+    readonly property bool totp: service ? (service.totpEnabled || service.staticChallenge) : false
+    readonly property bool hasCreds: service ? service.hasCredentials : false
+
+    function fmtRate(bps) {
+        if (!bps || bps <= 0) return "0 B/s"
+        if (bps < 1024) return bps.toFixed(0) + " B/s"
+        if (bps < 1048576) return (bps / 1024).toFixed(1) + " KB/s"
+        if (bps < 1073741824) return (bps / 1048576).toFixed(2) + " MB/s"
+        return (bps / 1073741824).toFixed(2) + " GB/s"
+    }
+    function join(arr) {
+        if (!arr || arr.length === 0) return "--"
+        return arr.join(", ")
     }
 
-    contentWidth: Style.space(260)
-    contentHeight: Style.space(140)
+    // ── Detail popover (2×2 buttons) ──
+    property string detailField: ""
+    property string detailTitle: ""
+    property string detailContent: ""
+    function showDetail(field) {
+        root.detailField = field
+        if (field === "dns") { root.detailTitle = "DNS"; root.detailContent = join(service ? service.dns : []) }
+        else if (field === "dnsDomain") { root.detailTitle = "DNS Domain"; root.detailContent = service ? (service.dnsDomain || "--") : "--" }
+        else if (field === "gateway") { root.detailTitle = "Gateway"; root.detailContent = service ? (service.gateway || "--") : "--" }
+        else if (field === "routes") { root.detailTitle = "Routes"; root.detailContent = join(service ? service.routes : []) }
+    }
 
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: Style.space(8)
-        spacing: Style.space(6)
+    KeyboardPanel {
+        id: panel
+        anchorItem: root.anchorItem
+        owner: root.hostWidget || root
+        bar: root.bar
+        open: root.opened
+        focusTarget: keyCatcher
+        contentWidth: Style.space(340)
+        contentHeight: root.totpPrompt
+            ? (cardCol.implicitHeight + Style.space(40))
+            : (flick.contentHeight + Style.space(36))
 
-        // Status row with connect button
-        RowLayout {
-            anchors.margins: Qt.size(0, 0)
-            spacing: Style.space(4)
+        PanelKeyCatcher {
+            id: keyCatcher
+            anchors.fill: parent
+            onCloseRequested: root.close()
 
-            Label {
-                text: "OpenVPN"
-                font.pixelSize: 11
-                font.color: "#888888"
-            }
+            Flickable {
+                id: flick
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: col.implicitHeight
+                clip: true
+                ColumnLayout {
+                    id: col
+                    width: flick.width - Style.space(16)
+                    x: Style.space(8)
+                    spacing: Style.space(6)
+                    visible: !root.totpPrompt
 
-            Button {
-                id: connectBtn
-                text: root.isConnected ? "Disconnect" : "Connect"
-                implicitWidth: Style.space(60)
-                implicitHeight: Style.space(24)
-                font.pixelSize: 10
-                enabled: true
-                onClicked: {
-                    root.isConnected = !root.isConnected
-                }
-            }
-        }
-
-        // Small separator
-        Frame {
-            implicitWidth: root.contentWidth
-            implicitHeight: 1
-            anchors.horizontalCenter: parent.horizontalCenter
-            FrameStyle {}
-        }
-
-        // Stats row with small graphs
-        RowLayout {
-            spacing: Style.space(6)
-            anchors.margins: Qt.size(0, 4)
-
-            // Download graph
-            Item {
-                Layout.minimumWidth: Style.space(80)
-                Layout.preferredWidth: Style.space(80)
-                Layout.fillWidth: true
-
-                // Download speed label
-                Label {
-                    id: downloadLabel
-                    text: "--"
-                    font.pixelSize: 9
-                    font.color: "#88c0d0"
-                    Layout.alignment: Qt.AlignLeft
-                }
-
-                // Small download bar/graph
-                Item {
-                    implicitHeight: Style.space(20)
+                // ── Title + settings ──
+                RowLayout {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    spacing: Style.space(6)
+                    Layout.alignment: Qt.AlignVCenter
+                    Label {
+                        text: root.icon
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: logoSize
+                        color: cAccent
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+                    Label {
+                        text: "OpenVPN"
+                        font.family: fontFam
+                        font.pixelSize: titleSize + 1
+                        font.bold: true
+                        color: cMuted
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+                    Button {
+                        iconText: ""
+                        fontFamily: "JetBrainsMono Nerd Font"
+                        fontSize: Style.font.body
+                        tooltipText: "Settings"
+                        Layout.preferredWidth: Style.space(28)
+                        Layout.alignment: Qt.AlignVCenter
+                        onClicked: root.showConfig = !root.showConfig
+                    }
+                }
 
-                    Repeater {
-                        model: 10
-                        delegate: Rectangle {
-                            implicitWidth: 3
-                            height: (downloadValue / 100) * 20
-                            color: "#88c0d0"
-                            anchors.bottom: parent.bottom
+                // ── Connect / Disconnect toggle ──
+                Toggle {
+                    label: isConnected ? "Connected" : "Disconnected"
+                    description: isBusy ? "Connecting…" : ""
+                    checked: isConnected
+                    enabled: !isBusy && service !== null
+                    Layout.fillWidth: true
+                    onClicked: root.toggleVpnFlow()
+                }
+
+                // ── Status / error line ──
+                Label {
+                    Layout.fillWidth: true
+                    font.family: fontFam
+                    font.pixelSize: captionSize
+                    opacity: 0.8
+                    color: (service && service.lastError) ? cErr
+                          : isConnected ? cOk
+                          : (isBusy ? cWarn : cMuted)
+                    text: isBusy ? "Connecting…"
+                         : (service && service.lastError) ? service.lastError
+                         : isConnected ? "Connected"
+                         : (hasCreds ? "Disconnected" : "Username required")
+                }
+
+                // ── Tunnel interface (shown above the graph, right aligned) ──
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: isConnected && service && service.iface
+                    Label {
+                        text: "Tunnel"
+                        font.family: fontFam
+                        font.pixelSize: captionSize
+                        color: Color.foreground
+                        opacity: 0.6
+                    }
+                    Label {
+                        text: service ? (service.iface + (service.link && service.link !== "--" ? " (Link " + service.link + ")" : "")) : ""
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: captionSize
+                        color: cAccent
+                        Layout.alignment: Qt.AlignRight
+                    }
+                }
+
+                // ── Traffic graph (always shown; flat when disconnected) ──
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: Style.space(64)
+                    Sparkline {
+                        anchors.fill: parent
+                        points: service ? service.txHistory : []
+                        mirrorPoints: service ? service.rxHistory : []
+                        lineColor: cAccent
+                        mirrorLineColor: cDown
+                        gridColor: Qt.rgba(1, 1, 1, 0.08)
+                        fixedMaximum: service && service.peakRate > 0 ? service.peakRate : 1
+                    }
+                    RowLayout {
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: Style.space(6)
+                        Label {
+                            text: "↑ " + fmtRate(service ? service.txRate : 0)
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: captionSize
+                            color: cAccent
+                        }
+                        Label {
+                            text: "↓ " + fmtRate(service ? service.rxRate : 0)
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: captionSize
+                            color: cDown
+                            Layout.alignment: Qt.AlignRight
                         }
                     }
-                    property int downloadValue: root.loadDownload()
-                }
-            }
-
-            // Upload graph
-            Item {
-                Layout.minimumWidth: Style.space(80)
-                Layout.preferredWidth: Style.space(80)
-                Layout.fillWidth: true
-
-                // Upload speed label
-                Label {
-                    id: uploadLabel
-                    text: "--"
-                    font.pixelSize: 9
-                    font.color: "#88c0d0"
-                    Layout.alignment: Qt.AlignRight
                 }
 
-                // Small upload bar/graph
-                Item {
-                    implicitHeight: Style.space(20)
+                // ── Separator ──
+                Rectangle {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    implicitHeight: 1
+                    color: Qt.rgba(1, 1, 1, 0.1)
+                }
 
-                    Repeater {
-                        model: 10
-                        delegate: Rectangle {
-                            implicitWidth: 3
-                            height: (uploadValue / 100) * 20
-                            color: "#82aaff"
-                            anchors.bottom: parent.bottom
+                // ── Connection info (only when connected) ──
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Style.space(4)
+                    visible: isConnected
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "Interface:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? ((service.iface || "--") + (service.link && service.link !== "--" ? " (Link " + service.link + ")" : "")) : "--" }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "Tunnel IP:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.vpnIp || "--") : "--" }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "Current DNS:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.dnsCurrent || "--") : "--" }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "DNS:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: join(service ? service.dns : []) }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "Remote:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.remote || "--") : "--" }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "Latency:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: (service ? (service.latency || "--") : "--") + " ms" }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(8)
+                        Label { text: "Uptime:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.uptime || "--") : "--" }
+                    }
+
+                    // Complex fields — 2×2 buttons opening a detail panel
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Style.space(6)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Style.space(6)
+                            QQC.Button {
+                                text: "DNS"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 36
+                                onClicked: root.showDetail("dns")
+                                background: Rectangle {
+                                    color: Color.background
+                                    border.color: cAccent
+                                    border.width: 1
+                                    radius: Style.space(4)
+                                }
+                            }
+                            QQC.Button {
+                                text: "DNS Domain"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 36
+                                onClicked: root.showDetail("dnsDomain")
+                                background: Rectangle {
+                                    color: Color.background
+                                    border.color: cAccent
+                                    border.width: 1
+                                    radius: Style.space(4)
+                                }
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Style.space(6)
+                            QQC.Button {
+                                text: "Gateway"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 36
+                                onClicked: root.showDetail("gateway")
+                                background: Rectangle {
+                                    color: Color.background
+                                    border.color: cAccent
+                                    border.width: 1
+                                    radius: Style.space(4)
+                                }
+                            }
+                            QQC.Button {
+                                text: "Routes"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 36
+                                onClicked: root.showDetail("routes")
+                                background: Rectangle {
+                                    color: Color.background
+                                    border.color: cAccent
+                                    border.width: 1
+                                    radius: Style.space(4)
+                                }
+                            }
                         }
                     }
-                    property int uploadValue: root.loadUpload()
+                }
+
+                // ── Config panel (toggled) — always available, even when disconnected ──
+                Loader {
+                    id: configLoader
+                    Layout.fillWidth: true
+                    active: root.showConfig
+                    visible: root.showConfig
+                    source: Qt.resolvedUrl("ConfigPanel.qml")
+                    onLoaded: {
+                        if (item && "service" in item) item.service = root.service
+                        if (item && "hostPanel" in item) item.hostPanel = root
+                        if (item && item.service && item.service.refreshProfiles) item.service.refreshProfiles()
+                    }
+                }
+            }
+            }
+
+            // ── TOTP prompt overlay (standalone compact card) ──
+            Item {
+                anchors.fill: parent
+                visible: totpPrompt
+                onVisibleChanged: if (visible) { otpField.text = ""; otpField.forceActiveFocus() }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Util.alpha(Color.background, 0.85)
+                }
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - Style.space(24), Style.space(260))
+                    implicitHeight: cardCol.implicitHeight + Style.space(24)
+                    radius: Style.space(8)
+                    color: Color.background
+                    border.color: cAccent
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: cardCol
+                        anchors.fill: parent
+                        anchors.margins: Style.space(12)
+                        spacing: Style.space(8)
+
+                        Label {
+                            text: "Two-factor authentication"
+                            font.family: fontFam
+                            font.pixelSize: bodySize
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.fillWidth: true
+                        }
+                        Label {
+                            text: "6-digit TOTP code"
+                            font.family: fontFam
+                            font.pixelSize: captionSize
+                            opacity: 0.7
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.fillWidth: true
+                        }
+                        TextField {
+                            id: otpField
+                            Layout.fillWidth: true
+                            font.family: fontFam
+                            font.pixelSize: bodySize
+                            maximumLength: 6
+                            inputMethodHints: Qt.ImhDigitsOnly
+                            placeholderText: "123456"
+                            horizontalAlignment: Text.AlignHCenter
+                            onAccepted: otpOk.clicked()
+                            onVisibleChanged: if (visible) forceActiveFocus()
+                        }
+                        RowLayout {
+                            spacing: Style.space(8)
+                            Button {
+                                text: "Cancel"
+                                fontSize: captionSize
+                                Layout.fillWidth: true
+                                onClicked: root.totpPrompt = false
+                            }
+                            Button {
+                                id: otpOk
+                                text: "Validate"
+                                fontSize: captionSize
+                                Layout.fillWidth: true
+                                enabled: otpField.text.length === 6
+                                onClicked: {
+                                    var c = otpField.text.trim()
+                                    root.totpPrompt = false
+                                    if (service) service.vpnConnect(service.username, root.pendingPassword, c)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Password prompt overlay (standalone compact card) ──
+            Item {
+                anchors.fill: parent
+                visible: passPrompt
+                onVisibleChanged: if (visible) { passField.text = ""; passField.forceActiveFocus() }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Util.alpha(Color.background, 0.85)
+                }
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - Style.space(24), Style.space(260))
+                    implicitHeight: passCol.implicitHeight + Style.space(24)
+                    radius: Style.space(8)
+                    color: Color.background
+                    border.color: cAccent
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: passCol
+                        anchors.fill: parent
+                        anchors.margins: Style.space(12)
+                        spacing: Style.space(8)
+
+                        Label {
+                            text: "Password"
+                            font.family: fontFam
+                            font.pixelSize: bodySize
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.fillWidth: true
+                        }
+                        TextField {
+                            id: passField
+                            Layout.fillWidth: true
+                            font.family: fontFam
+                            font.pixelSize: bodySize
+                            placeholderText: "Password"
+                            echoMode: TextInput.Password
+                            horizontalAlignment: Text.AlignHCenter
+                            onAccepted: passOk.clicked()
+                            onVisibleChanged: if (visible) forceActiveFocus()
+                        }
+                        RowLayout {
+                            spacing: Style.space(8)
+                            Button {
+                                text: "Cancel"
+                                fontSize: captionSize
+                                Layout.fillWidth: true
+                                onClicked: root.passPrompt = false
+                            }
+                            Button {
+                                id: passOk
+                                text: "Validate"
+                                fontSize: captionSize
+                                Layout.fillWidth: true
+                                enabled: passField.text.length > 0
+                                onClicked: {
+                                    var p = passField.text
+                                    root.passPrompt = false
+                                    root.pendingPassword = p
+                                    if (root.totp) root.totpPrompt = true
+                                    else if (service) service.vpnConnect(service.username, root.pendingPassword, "")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Detail popover (2×2 buttons) ──
+            Item {
+                anchors.fill: parent
+                z: 100
+                visible: root.detailField !== ""
+                onVisibleChanged: if (visible) detailClose.forceActiveFocus()
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Util.alpha(Color.background, 0.85)
+                    MouseArea { anchors.fill: parent; onClicked: root.detailField = "" }
+                }
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width - Style.space(24)
+                    height: Math.min(parent.height - Style.space(40), Math.max(detCol.implicitHeight + Style.space(24), Style.space(180)))
+                    radius: Style.space(8)
+                    color: Color.background
+                    border.color: cAccent
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: detCol
+                        anchors.fill: parent
+                        anchors.margins: Style.space(12)
+                        spacing: Style.space(8)
+
+                        Label {
+                            text: root.detailTitle
+                            font.family: fontFam
+                            font.pixelSize: bodySize
+                            font.bold: true
+                            color: Color.foreground
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Layout.minimumHeight: Style.space(100)
+                            contentWidth: width
+                            contentHeight: detText.implicitHeight
+                            clip: true
+                            Text {
+                                id: detText
+                                width: parent.width
+                                text: root.detailContent
+                                font.family: fontFam
+                                font.pixelSize: bodySize
+                                color: Color.foreground
+                                wrapMode: Text.Wrap
+                            }
+                        }
+
+                        Button {
+                            id: detailClose
+                            text: "Close"
+                            fontSize: captionSize
+                            Layout.fillWidth: true
+                            onClicked: root.detailField = ""
+                        }
+                    }
                 }
             }
         }
-
-        // Quick info row
-        RowLayout {
-            spacing: Style.space(6)
-            anchors.margins: Qt.size(0, 4)
-
-            Label { text: "IP:" ; font.pixelSize: 8 ; font.color: "#888888" }
-            Label {
-                id: ipLabel
-                text: root.isConnected ? root.loadIP() : "--"
-                font.pixelSize: 8
-                font.color: "#ffffff"
-            }
-            Label { text:"/" ; font.pixelSize: 8 ; font.color: "#888888" }
-            Label {
-                id: ifaceLabel
-                text: root.isConnected ? "tun0" : "--"
-                font.pixelSize: 8
-                font.color: "#888888"
-            }
-        }
-    }
-
-    function loadDownload() {
-        if (!root.hostWidget || !root.hostWidget.isConnected) return 0
-        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $2}'")
-        if (!output) return 0
-        var parts = output.split(" ")
-        if (parts.length < 1) return 0
-        return parseInt(parts[0])
-    }
-
-    function loadUpload() {
-        if (!root.hostWidget || !root.hostWidget.isConnected) return 0
-        var output = Omarchy.readPipe("cat /proc/net/dev | grep tun0 | awk '{print $10}'")
-        if (!output) return 0
-        var parts = output.split(" ")
-        if (parts.length < 1) return 0
-        return parseInt(parts[0])
-    }
-
-    function loadIP() {
-        if (!root.hostWidget || !root.hostWidget.isConnected) return "--"
-        var output = Omarchy.readPipe("ip -4 addr show tun0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
-        if (!output) return "--"
-        return output.trim()
     }
 }

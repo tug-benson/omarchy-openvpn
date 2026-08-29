@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+# omarchy-openvpn-status
+# Report the active NetworkManager VPN connection state.
+# Output JSON: {"connected": bool, "iface": str, "ip": str}
+# Auto-detects the active VPN; no argument needed.
+import subprocess, json
+
+res = subprocess.run(
+    ["nmcli", "-t", "-f", "NAME,UUID,TYPE,STATE,DEVICE", "connection", "show", "--active"],
+    capture_output=True, text=True,
+).stdout
+
+dev = None
+for line in res.splitlines():
+    p = line.split(":")
+    if len(p) >= 5 and p[2] == "vpn" and p[3] == "activated":
+        dev = p[4]
+        break
+
+if not dev:
+    print(json.dumps({"connected": False}))
+    raise SystemExit(0)
+
+ip4 = []
+out = subprocess.run(
+    ["nmcli", "-t", "-f", "IP4.ADDRESS", "device", "show", dev],
+    capture_output=True, text=True,
+).stdout
+for line in out.splitlines():
+    if "IP4.ADDRESS" in line:
+        ip4.append(line.split(":", 1)[1].strip())
+
+print(json.dumps({
+    "connected": True,
+    "iface": dev,
+    "ip": ", ".join(ip4),
+}))

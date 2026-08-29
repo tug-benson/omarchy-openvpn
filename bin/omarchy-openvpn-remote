@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# omarchy-openvpn-remote
+# Print "host port proto" of the first remote in a NetworkManager VPN
+# connection (argument is the connection UUID or name). Used to prefill the
+# remote label in the UI. NetworkManager stores vpn.data as a comma-separated
+# list of key = value pairs.
+set -uo pipefail
+CONN="${1:-}"
+[ -z "$CONN" ] && exit 0
+nmcli -t -f vpn.data connection show "$CONN" 2>/dev/null \
+    | grep -oP 'remote = \K[^,]+' | head -1 \
+    | tr -d '\\' \
+    | awk -F: '{print $1, $2, $3}'
