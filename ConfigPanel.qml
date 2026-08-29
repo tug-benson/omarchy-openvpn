@@ -63,6 +63,14 @@ ColumnLayout {
         visible: root.service ? root.service.importReused : false
         Layout.fillWidth: true
     }
+    Label {
+        id: importErr
+        text: (root.service && root.service.importError) ? root.service.importError : ""
+        font.family: Style.font.family; font.pixelSize: Style.font.caption
+        color: Color.urgent; wrapMode: Text.Wrap
+        visible: text !== ""
+        Layout.fillWidth: true
+    }
     Timer {
         id: importMsgTimer
         interval: 3500

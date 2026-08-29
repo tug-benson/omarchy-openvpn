@@ -64,6 +64,7 @@ Item {
     property bool splitTunnel: true
     property bool staticChallenge: false
     property bool importReused: false
+    property string importError: ""
 
     // ── Script path helper ──
     function scriptPath(name) {
@@ -443,6 +444,7 @@ Item {
     }
     function importProfile(src) {
         root.importReused = false
+        root.importError = ""
         importRun.command = ["bash", root.scriptPath("omarchy-openvpn-import"), src]
         importRun.running = true
     }
@@ -457,7 +459,12 @@ Item {
                 out = out.substring(6)
             }
             if (code === 0 && out) {
+                root.importError = ""
                 root.selectProfile(out)
+            } else if (out.indexOf("FAIL:") === 0) {
+                root.importError = out.substring(5).trim()
+            } else {
+                root.importError = "Import failed (exit " + code + ")"
             }
         }
     }

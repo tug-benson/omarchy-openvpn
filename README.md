@@ -53,10 +53,13 @@ omarchy plugin remove openvpn
 ## Dependencies
 
 ```bash
-sudo pacman -S networkmanager openvpn python3 polkit zenity
+sudo pacman -S networkmanager networkmanager-openvpn openvpn python3 polkit zenity
 ```
 
 - `networkmanager` / `nmcli` — manages the VPN connection (no root needed).
+- `networkmanager-openvpn` — the NetworkManager OpenVPN plugin; **required** so that
+  `nmcli connection import type openvpn` can create the VPN connection. Without it the
+  import fails (the UI will now report the error instead of failing silently).
 - `openvpn` (>= 2.6) — the underlying client launched by NetworkManager.
 - `python3` — generates the connection config and gathers traffic/network info.
 - `zenity` — file picker for `.ovpn` import.
