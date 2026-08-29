@@ -9,6 +9,10 @@ No `sudo` / NOPASSWD is required — the plugin drives NetworkManager (`nmcli`) 
 the user's existing PolicyKit privileges. Credentials are passed through the
 environment; only the username is persisted to disk, never the password.
 
+## Preview
+
+![OpenVPN Connect panel](preview.png)
+
 ## Features
 
 - **Multiple profiles** — import several `.ovpn` files, selectable from the config panel.
@@ -38,6 +42,12 @@ Or symlink during development:
 
 ```bash
 ln -s /path/to/omarchy-openvpn ~/.config/omarchy/plugins/openvpn
+```
+
+To remove:
+
+```bash
+omarchy plugin remove openvpn
 ```
 
 ## Dependencies
