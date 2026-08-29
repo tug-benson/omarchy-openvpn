@@ -47,7 +47,7 @@ ln -s /path/to/omarchy-openvpn ~/.config/omarchy/plugins/openvpn
 To remove:
 
 ```bash
-omarchy plugin remove openvpn
+omarchy plugin remove io.github.tug-benson.openvpn
 ```
 
 ## Dependencies

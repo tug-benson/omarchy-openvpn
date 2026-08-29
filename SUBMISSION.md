@@ -38,7 +38,7 @@ Server (AS).
   The plugin installs nothing on its own; it drives NetworkManager via `nmcli` using the
   user's existing PolicyKit privileges (no `sudo` / NOPASSWD).
 - Install: `omarchy plugin add https://github.com/tug-benson/omarchy-openvpn`
-- Remove: `omarchy plugin remove openvpn`
+- Remove: `omarchy plugin remove io.github.tug-benson.openvpn`
 - Permissions / privacy: the password and TOTP code are entered at connect time and
   passed only through the process environment to `nmcli`; they are never written to disk.
   Only the non-secret username is persisted (to `~/.config/openvpn/ui.json`). The plugin

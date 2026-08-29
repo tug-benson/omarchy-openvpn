@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "openvpn",
+  "id": "io.github.tug-benson.openvpn",
   "name": "Omarchy OpenVPN Connect",
   "version": "2.0.0",
   "description": "OpenVPN client for Omarchy — multi-profile .ovpn import, username/password + TOTP (MFA) challenge/response auth, live tunnel traffic graph, and full network info (IP, gateway, DNS, routes, search domains).",
-  "author": "omarchy-openvpn",
+  "author": "tug-benson",
   "license": "MIT",
   "repository": "https://github.com/tug-benson/omarchy-openvpn",
   "kinds": ["service", "bar-widget"],
