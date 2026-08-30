@@ -45,7 +45,7 @@ Panel {
     readonly property var service: hostWidget && hostWidget.service
         ? hostWidget.service
         : (bar && bar.shell && typeof bar.shell.serviceFor === "function"
-           ? bar.shell.serviceFor("openvpn") : null)
+           ? (bar.shell.serviceFor("io.github.tug-benson.openvpn") || bar.shell.serviceFor("openvpn")) : null)
 
     readonly property bool isConnected: service ? service.connected : false
     readonly property bool isBusy: service ? service.busy : false
@@ -112,6 +112,7 @@ Panel {
                     spacing: Style.space(6)
                     Layout.alignment: Qt.AlignVCenter
                     Label {
+            textFormat: Text.PlainText;
                         text: root.icon
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: logoSize
@@ -119,6 +120,7 @@ Panel {
                         Layout.alignment: Qt.AlignVCenter
                     }
                     Label {
+            textFormat: Text.PlainText;
                         text: "OpenVPN"
                         font.family: fontFam
                         font.pixelSize: titleSize + 1
@@ -150,6 +152,7 @@ Panel {
 
                 // ── Status / error line ──
                 Label {
+            textFormat: Text.PlainText;
                     Layout.fillWidth: true
                     font.family: fontFam
                     font.pixelSize: captionSize
@@ -168,6 +171,7 @@ Panel {
                     Layout.fillWidth: true
                     visible: isConnected && service && service.iface
                     Label {
+            textFormat: Text.PlainText;
                         text: "Tunnel"
                         font.family: fontFam
                         font.pixelSize: captionSize
@@ -175,6 +179,7 @@ Panel {
                         opacity: 0.6
                     }
                     Label {
+            textFormat: Text.PlainText;
                         text: service ? (service.iface + (service.link && service.link !== "--" ? " (Link " + service.link + ")" : "")) : ""
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: captionSize
@@ -202,12 +207,14 @@ Panel {
                         anchors.right: parent.right
                         spacing: Style.space(6)
                         Label {
+            textFormat: Text.PlainText;
                             text: "↑ " + fmtRate(service ? service.txRate : 0)
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: captionSize
                             color: cAccent
                         }
                         Label {
+            textFormat: Text.PlainText;
                             text: "↓ " + fmtRate(service ? service.rxRate : 0)
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: captionSize
@@ -233,44 +240,58 @@ Panel {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "Interface:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? ((service.iface || "--") + (service.link && service.link !== "--" ? " (Link " + service.link + ")" : "")) : "--" }
+                        Label {
+            textFormat: Text.PlainText; text: "Interface:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? ((service.iface || "--") + (service.link && service.link !== "--" ? " (Link " + service.link + ")" : "")) : "--" }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "Tunnel IP:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.vpnIp || "--") : "--" }
+                        Label {
+            textFormat: Text.PlainText; text: "Tunnel IP:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.vpnIp || "--") : "--" }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "Current DNS:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.dnsCurrent || "--") : "--" }
+                        Label {
+            textFormat: Text.PlainText; text: "Current DNS:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.dnsCurrent || "--") : "--" }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "DNS:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: join(service ? service.dns : []) }
+                        Label {
+            textFormat: Text.PlainText; text: "DNS:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: join(service ? service.dns : []) }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "Remote:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.remote || "--") : "--" }
+                        Label {
+            textFormat: Text.PlainText; text: "Remote:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.remote || "--") : "--" }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "Latency:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: (service ? (service.latency || "--") : "--") + " ms" }
+                        Label {
+            textFormat: Text.PlainText; text: "Latency:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: (service ? (service.latency || "--") : "--") + " ms" }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Style.space(8)
-                        Label { text: "Uptime:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
-                        Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.uptime || "--") : "--" }
+                        Label {
+            textFormat: Text.PlainText; text: "Uptime:"; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; opacity: 0.6 }
+                        Label {
+            textFormat: Text.PlainText; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.family: fontFam; font.pixelSize: bodySize; color: Color.foreground; elide: Text.ElideLeft; text: service ? (service.uptime || "--") : "--" }
                     }
 
                     // Complex fields — 2×2 buttons opening a detail panel
@@ -379,6 +400,7 @@ Panel {
                         spacing: Style.space(8)
 
                         Label {
+            textFormat: Text.PlainText;
                             text: "Two-factor authentication"
                             font.family: fontFam
                             font.pixelSize: bodySize
@@ -387,6 +409,7 @@ Panel {
                             Layout.fillWidth: true
                         }
                         Label {
+            textFormat: Text.PlainText;
                             text: "6-digit TOTP code"
                             font.family: fontFam
                             font.pixelSize: captionSize
@@ -458,6 +481,7 @@ Panel {
                         spacing: Style.space(8)
 
                         Label {
+            textFormat: Text.PlainText;
                             text: "Password"
                             font.family: fontFam
                             font.pixelSize: bodySize
@@ -532,6 +556,7 @@ Panel {
                         spacing: Style.space(8)
 
                         Label {
+            textFormat: Text.PlainText;
                             text: root.detailTitle
                             font.family: fontFam
                             font.pixelSize: bodySize
@@ -549,6 +574,7 @@ Panel {
                             contentHeight: detText.implicitHeight
                             clip: true
                             Text {
+            textFormat: Text.PlainText;
                                 id: detText
                                 width: parent.width
                                 text: root.detailContent

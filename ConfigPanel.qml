@@ -21,7 +21,7 @@ ColumnLayout {
     // ── Import process ──
     Process {
         id: filePicker
-        command: ["zenity", "--file-selection", "--title=Select a .ovpn file", "--file-filter=OpenVPN | *.ovpn"]
+        command: ["zenity", "--file-selection", "--title=Select a .ovpn file", "--file-filter=OpenVPN | *.ovpn *.OVPN", "--file-filter=All files | *"]
         stdout: StdioCollector { waitForEnd: true }
         onExited: function(code) {
             if (code === 0) {
@@ -33,11 +33,13 @@ ColumnLayout {
     }
 
     // ── Profile ──
-    Label { text: "Profile"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
+    Label {
+            textFormat: Text.PlainText; text: "Profile"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
     RowLayout {
         Layout.fillWidth: true
         spacing: Style.space(4)
         Label {
+            textFormat: Text.PlainText;
             Layout.fillWidth: true
             text: (root.service && root.service.activeProfileName) ? root.service.activeProfileName : "—"
             font.family: Style.font.family; font.pixelSize: Style.font.body
@@ -56,6 +58,7 @@ ColumnLayout {
         }
     }
     Label {
+            textFormat: Text.PlainText;
         id: importMsg
         text: "ℹ Profile already imported — connection reused"
         font.family: Style.font.family; font.pixelSize: Style.font.caption
@@ -64,6 +67,7 @@ ColumnLayout {
         Layout.fillWidth: true
     }
     Label {
+            textFormat: Text.PlainText;
         id: importErr
         text: (root.service && root.service.importError) ? root.service.importError : ""
         font.family: Style.font.family; font.pixelSize: Style.font.caption
@@ -82,7 +86,8 @@ ColumnLayout {
     }
 
     // ── Connection options ──
-    Label { text: "Connection"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
+    Label {
+            textFormat: Text.PlainText; text: "Connection"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
     RowLayout {
         Layout.fillWidth: true
         spacing: Style.space(8)
@@ -140,7 +145,8 @@ ColumnLayout {
     }
 
     // ── Credentials ──
-    Label { text: "Credentials"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
+    Label {
+            textFormat: Text.PlainText; text: "Credentials"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
     TextField {
         id: userField
         Layout.fillWidth: true
@@ -152,13 +158,15 @@ ColumnLayout {
         }
     }
     Label {
+            textFormat: Text.PlainText;
         text: "Password and TOTP are requested at connection time."
         font.family: Style.font.family; font.pixelSize: Style.font.caption
         opacity: 0.6; wrapMode: Text.Wrap; Layout.fillWidth: true
     }
 
     // ── MFA / TOTP ──
-    Label { text: "MFA / TOTP"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
+    Label {
+            textFormat: Text.PlainText; text: "MFA / TOTP"; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; opacity: 0.7 }
     CheckBox {
         id: totpBox
         text: "Require TOTP code (authenticator app)"
@@ -168,11 +176,13 @@ ColumnLayout {
         onToggled: { if (root.service) root.service.setTotp(checked) }
     }
     Label {
+            textFormat: Text.PlainText;
         text: "At connection time, a field appears to enter the 6-digit code."
         font.family: Style.font.family; font.pixelSize: Style.font.caption
         opacity: 0.5; wrapMode: Text.Wrap; Layout.fillWidth: true
     }
     Label {
+            textFormat: Text.PlainText;
         visible: root.service ? root.service.staticChallenge : false
         text: "This profile enforces a static-challenge: the TOTP code is required."
         font.family: Style.font.family; font.pixelSize: Style.font.caption
