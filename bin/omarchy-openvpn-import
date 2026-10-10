@@ -14,10 +14,17 @@ FILE="${1:-}"
 [ -z "$FILE" ] && { echo "FAIL: no file given"; exit 1; }
 [ -f "$FILE" ] || { echo "FAIL: file not found: $FILE"; exit 1; }
 
-OUT=$(nmcli connection import type openvpn file "$FILE" 2>&1)
+# Force the C locale: the parsing below expects nmcli's English output. On a
+# localized system (e.g. Spanish) nmcli prints a warning first
+# ("Aviso: hay otra conexión con el nombre «X». Haga referencia a la conexión
+# por su uuid «...»."), the sed patterns match nothing, the import is reported as
+# failed AND the duplicate check below is skipped -- leaving two connections with
+# the same name, which breaks any name-based `nmcli connection up <name>`.
+OUT=$(LC_ALL=C nmcli connection import type openvpn file "$FILE" 2>&1)
 NAME=$(printf '%s' "$OUT" | sed -n "s/.*Connection '\([^']*\)'.*/\1/p")
-NEWUUID=$(printf '%s' "$OUT" | sed -n "s/.*Connection '[^']*' (\([0-9a-f-]*\)).*/\1/p")
-if [ -z "$NAME" ] || [ -z "$NEWUUID" ]; then
+[ -z "$NAME" ] && NAME=$(basename "$FILE" .ovpn)
+NEWUUID=$(printf '%s' "$OUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+if [ -z "$NEWUUID" ]; then
     echo "FAIL: import failed: $OUT"
     exit 1
 fi

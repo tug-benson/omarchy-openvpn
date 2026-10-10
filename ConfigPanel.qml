@@ -47,13 +47,49 @@ ColumnLayout {
             elide: Text.ElideRight
         }
         Button {
-            iconText: ""
+            visible: root.service ? root.service.profiles.length > 1 : false
+            text: "Change"
+            tooltipText: "Pick another OpenVPN profile"
+            fontSize: Style.font.caption
+            onClicked: {
+                if (root.service) root.service.refreshProfiles()
+                root.showProfiles = !root.showProfiles
+            }
+        }
+        Button {
+            iconText: ""
             fontFamily: "JetBrainsMono Nerd Font"
             fontSize: Style.font.body
             Layout.preferredWidth: Style.space(28)
             onClicked: {
                 if (root.hostPanel) root.hostPanel.close()
                 filePicker.running = true
+            }
+        }
+    }
+
+    // ── Profile picker: one row per imported OpenVPN connection ──
+    // Lists the connections reported by omarchy-openvpn-profiles; picking one
+    // runs Service.selectProfile(), which persists the choice and refreshes the
+    // settings that depend on it (challenge detection, remote host/port).
+    property bool showProfiles: false
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Style.space(2)
+        visible: root.showProfiles && root.service && root.service.profiles.length > 1
+        Repeater {
+            model: root.service ? root.service.profiles : []
+            delegate: Button {
+                required property var modelData
+                Layout.fillWidth: true
+                leftAlign: true
+                fontSize: Style.font.body
+                text: modelData.name
+                selected: root.service && root.service.selectedProfile === modelData.path
+                onClicked: {
+                    if (root.service) root.service.selectProfile(modelData.path)
+                    root.showProfiles = false
+                }
             }
         }
     }
