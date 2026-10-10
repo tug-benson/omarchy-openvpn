@@ -23,7 +23,12 @@ FILE="${1:-}"
 OUT=$(LC_ALL=C nmcli connection import type openvpn file "$FILE" 2>&1)
 NAME=$(printf '%s' "$OUT" | sed -n "s/.*Connection '\([^']*\)'.*/\1/p")
 [ -z "$NAME" ] && NAME=$(basename "$FILE" .ovpn)
-NEWUUID=$(printf '%s' "$OUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+# Take the UUID from the "successfully added" line only. With LC_ALL=C the
+# output is English and stable, but on a duplicate-name import nmcli first
+# prints a warning quoting the PRE-EXISTING connection's UUID; taking the
+# first UUID in the output (head -1) would select the old connection and the
+# duplicate check below would then delete the original instead of the clone.
+NEWUUID=$(printf '%s' "$OUT" | sed -n "s/.*Connection '[^']*' (\([0-9a-f-]*\)).*successfully added.*/\1/p")
 if [ -z "$NEWUUID" ]; then
     echo "FAIL: import failed: $OUT"
     exit 1
