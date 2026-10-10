@@ -64,16 +64,25 @@ fi
 
 # Feed secrets to nmcli --ask on stdin. nmcli prompts for each required secret
 # in order; we answer with the raw password, then the raw OTP/challenge reply.
+# nmcli/Readline echoes the typed response when the challenge has echo enabled,
+# so its output is authentication material: keep it in a private ephemeral file
+# (0600, removed on exit) — never in a persistent world-readable log.
+UPLOG=$(mktemp /tmp/omarchy-openvpn-up.XXXXXX) || { echo "FAIL: cannot create temp file"; exit 1; }
+chmod 600 "$UPLOG"
+trap 'rm -f "$UPLOG"' EXIT
 {
     printf '%s\n' "$PASS"
     [ -n "$OTP" ] && printf '%s\n' "$OTP"
-} | timeout 45 nmcli connection up "$CONN" --ask >/tmp/omarchy-openvpn-up.log 2>&1
+} | timeout 45 nmcli connection up "$CONN" --ask >"$UPLOG" 2>&1
 RC=${PIPESTATUS[1]}
 
 if [ "$RC" -eq 0 ]; then
     echo "SUCCESS"
 else
-    LOG=$(tail -3 /tmp/omarchy-openvpn-up.log | tr '\n' ' ')
+    LOG=$(tail -3 "$UPLOG" | tr '\n' ' ')
+    # The branches below only emit fixed strings except the last one, which
+    # interpolates LOG: scrub any echoed secret there, since the FAIL line is
+    # surfaced in the panel and the shell log, both readable surfaces.
     # The precise auth failure reason (e.g. LOCKOUT) is reported by openvpn in
     # the system journal, not in nmcli's stdout. Prefer that when available.
     if timeout 3 journalctl -u NetworkManager -n 60 --no-pager 2>/dev/null \
@@ -84,6 +93,9 @@ else
     elif echo "$LOG" | grep -qi "A password is required\|AUTH"; then
         echo "FAIL: Authentication failed — invalid credentials or TOTP code."
     else
+        if [ -n "$PASS" ]; then LOG=$(printf '%s' "$LOG" | grep -vF -- "$PASS" || true); fi
+        if [ -n "$OTP" ]; then LOG=$(printf '%s' "$LOG" | grep -vF -- "$OTP" || true); fi
+        [ -z "$LOG" ] && LOG="Connection failed (details redacted to protect credentials)."
         echo "FAIL: $LOG"
     fi
 fi
