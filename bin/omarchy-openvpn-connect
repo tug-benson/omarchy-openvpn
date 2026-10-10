@@ -30,6 +30,10 @@ OTP="${OPENVPN_OTP:-}"
 
 [ -z "$CONN" ] && { echo "FAIL: no connection specified"; exit 1; }
 
+# Remove any stale transcript left by pre-cdab89d runs, which was created
+# world-readable and may still hold authentication material.
+rm -f /tmp/omarchy-openvpn-up.log
+
 # Set the username on the connection (non-secret, persisted).
 nmcli connection modify "$CONN" vpn.user-name "$USER" 2>/dev/null
 
@@ -93,8 +97,13 @@ else
     elif echo "$LOG" | grep -qi "A password is required\|AUTH"; then
         echo "FAIL: Authentication failed — invalid credentials or TOTP code."
     else
-        if [ -n "$PASS" ]; then LOG=$(printf '%s' "$LOG" | grep -vF -- "$PASS" || true); fi
-        if [ -n "$OTP" ]; then LOG=$(printf '%s' "$LOG" | grep -vF -- "$OTP" || true); fi
+        # Scrub with shell builtins only: passing secrets as arguments to an
+        # external command (e.g. grep -vF) would expose them via
+        # /proc/<pid>/cmdline to other local accounts. A quoted "$PASS"/"$OTP"
+        # in the expansion matches literally (no glob interpretation), so
+        # metacharacters in credentials are handled exactly.
+        if [ -n "$PASS" ]; then LOG=${LOG//"$PASS"/"[redacted]"}; fi
+        if [ -n "$OTP" ]; then LOG=${LOG//"$OTP"/"[redacted]"}; fi
         [ -z "$LOG" ] && LOG="Connection failed (details redacted to protect credentials)."
         echo "FAIL: $LOG"
     fi
